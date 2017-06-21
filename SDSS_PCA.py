@@ -15,7 +15,7 @@ class SDSS_PCA:
     def set_flux(infile):
         self.fluxdf=pd.read_csv(infile)
 
-    def load_spec_files(spec_dir='./spec_dir',smooth_wid=10,wavstep=None,wavmin=0,wavmax=10000,savefile=None):
+    def load_spec_files(self,spec_dir='./spec_dir',smooth_wid=10,wavstep=None,wavmin=0,wavmax=10000,savefile=None):
         redshifts,plates,mjds,fibers,ids=self.master.z.values,self.master.plate.values,self.master.mjd.values,self.master.fiberid.values,self.master.specobjid.values
         self.fluxdf=LSF(redshifts,plates,mjds,fibers,spec_dir=spec_dir,smooth_wid=smooth_wid,wavstep=wavstep,wavmin=wavmin,wavmax=wavmax,savefile=savefile,ids=ids)
 
@@ -49,7 +49,7 @@ class SDSS_PCA:
         self.clf.fit(train_X,train_y)
         self.predicted_y=self.clf.predict(test_X)
         
-    def ComparePredictions(checkvalues=None,imax=None,verbose=False):
+    def ComparePredictions(self,checkvalues=None,imax=None,verbose=False):
         try:
             self.predicted_y,self.master
         except NameError:
