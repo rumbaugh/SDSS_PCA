@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import load_spec_files as LSF
+from load_spec_files import load_spec_files as LSF
 from sklearn import decomposition,neighbors
 from sklearn.neighbors import KDTree,BallTree
 
@@ -12,7 +12,11 @@ class SDSS_PCA:
         elif inputfile!=None:
             self.fluxdf=pd.read_csv(inputfile)
 
-    def set_flux(infile):
+    def cut_master(self,imax):
+        if imax>len(self.master): print 'imax greater than length of master'
+        self.master=self.master[:imax]
+
+    def set_flux(self,infile):
         self.fluxdf=pd.read_csv(infile)
 
     def load_spec_files(self,spec_dir='./spec_dir',smooth_wid=10,wavstep=None,wavmin=0,wavmax=10000,savefile=None):
@@ -42,27 +46,27 @@ class SDSS_PCA:
             return
         #try:
         #    self.sourcetype
-        train_df=flux_pca.iloc[:int(train_perc*len(df))]
-        train_X,train_y=train_df.values,self.master['class'].values[:int(train_perc*len(df))]
-        test_X,test_y=flux_pca.iloc[int(train_perc*len(df)):].values,self.master['class'].values[int(train_perc*len(df)):]
-        self.clf=neighbors.KNeighborsClassifier(n_neighbors,weights=weights,algorithm='kdtree')
+        train_df=self.flux_pca[:int(train_perc*np.shape(self.flux_pca)[0])]
+        train_X,train_y=train_df,self.master['class'].values[:int(train_perc*len(self.flux_pca))]
+        test_X,test_y=self.flux_pca[int(train_perc*np.shape(self.flux_pca)[0]):],self.master['class'].values[int(train_perc*np.shape(self.flux_pca)[0]):]
+        self.clf=neighbors.KNeighborsClassifier(n_neighbors,weights=weights,algorithm='kd_tree')
         self.clf.fit(train_X,train_y)
         self.predicted_y=self.clf.predict(test_X)
         
-    def ComparePredictions(self,checkvalues=None,imax=None,verbose=False):
+    def ComparePredictions(self,check_values=None,imax=None,verbose=False):
         try:
             self.predicted_y,self.master
         except NameError:
             print 'Must set predicted_y and master'
             return
-        if check_values==None:check_values=self.master['class'].values[-len(predicted_y)]
+        if check_values==None:check_values=self.master['class'].values[-len(self.predicted_y):]
         if not(verbose):
-            perc_correct=np.sum(check_values==predicted_y)*1./len(predicted_y)*100
+            perc_correct=np.sum(check_values==self.predicted_y)*1./len(self.predicted_y)*100
             print 'Predicted Correctly: {:.2f}'.format(perc_correct)
         else:
             masterlen=len(self.master['class'].values)
-            if imax==None: imax=masterlen-len(self.predicted_y)
+            if imax==None: imax=len(self.predicted_y)
             if imax>masterlen:imax=masterlen
             for i in range(0,imax):
-                print check_values[i],predicted_y[i]
+                print check_values[i],self.predicted_y[i]
             

@@ -5,16 +5,16 @@ import os
 
 
 def load_spec_files(redshifts,plates=None,mjds=None,fibers=None,spec_dir='./spec',smooth_wid=10,wavstep=None,wavmin=0,wavmax=10000,savefile=None,ids=None):
-    inpcheck=np.array([plates==None,mjds==None,fibers==None])
-    if inpcheck<3:
-        if inpcheck>0:
+    inpcheck=np.sum(np.array([plates==None,mjds==None,fibers==None]))
+    if inpcheck>0:
+        if inpcheck<3:
             print 'plates, mjds, and fibers must ALL be provided'
-            try:
-                specfiles=os.listdir(spec_dir)
-            except OSError:
-                print "ls to the directory '{}' failed".format(spec_dir)
-                return
-            plates,mjds,fibers=np.zeros(len(specfiles),dtype='<i4'),np.zeros(len(specfiles),dtype='<i4'),np.zeros(len(specfiles),dtype='<i4')
+        try:
+            specfiles=os.listdir(spec_dir)
+        except OSError:
+            print "ls to the directory '{}' failed".format(spec_dir)
+            return
+        plates,mjds,fibers=np.zeros(len(specfiles),dtype='<i4'),np.zeros(len(specfiles),dtype='<i4'),np.zeros(len(specfiles),dtype='<i4')
     else:
         if ((len(plates)!=len(mjds))|(len(plates)!=len(fibers))):
             print 'plates, fibers, and mjds must all have same length'
