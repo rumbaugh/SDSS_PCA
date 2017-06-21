@@ -3,6 +3,49 @@ import pandas as pd
 from load_spec_files import load_spec_files as LSF
 from sklearn import decomposition,neighbors
 from sklearn.neighbors import KDTree,BallTree
+import matplotlib.pyplot as plt
+
+def plot_spectrum(wav,flux,xmin=None,xmax=None,ymin=None,ymax=None,labels=None,plotfile=None):
+    fluxshared=False
+    if np.shape(wav)!=np.shape(flux):
+        if (len(np.shape(flux))==1):
+            if len(flux)!=np.shape(wav)[1]:
+                print 'wav and flux must have same dimensions'
+                return
+            fluxshared=True
+        else:
+            print 'wav and flux must have same dimensions'
+            return
+    if plotfile!=None:
+        import matplotlib.backends.backend_pdf as bpdf
+        pdf=bpdf.PdfPages(plotfile)
+    fig=plt.figure()
+    plt.clf()
+    plt.rc('axes',linewidth=2)
+    plt.fontsize = 14
+    plt.tick_params(which='major',length=8,width=2,labelsize=14)
+    plt.tick_params(which='minor',length=4,width=1.5,labelsize=14)
+    plt.plot(wav,flux)
+    if plotfile!=None:fig.savefig(pdf,format='pdf')
+    try:
+        wavlen=np.shape(wav)[1]
+        numspec=np.shape(wav)[0]
+        if labels==None:
+            labels=np.full(numspec,None)
+        else:
+            if len(labels)!=numspec:
+                print "labels length doesn't match"
+                labels=np.full(numspec,None)
+        for i in range(1,numspec):
+            if plotfile!=None:plt.clf()
+            if fluxshared:
+                plt.plot(wav[i],flux,label=labels[i])
+            else:
+                plt.plot(wav[i],flux[i],label=labels[i])
+            if plotfile!=None:fig.savefig(pdf,format='pdf')
+        if (plotfile==None) & (np.count_nonzero(labels)>0): plt.legend(frameon=False)
+    if plotfile!=None: pdf.close()
+    return
 
 class SDSS_PCA:
     def __init__(self,masterfile='./random_SDSS_specs.csv',fluxdf=None,inputfile=None):
@@ -38,7 +81,7 @@ class SDSS_PCA:
         self.pca.fit(X)
         self.flux_pca=self.pca.transform(X)
     
-    def KDTreeClassify(self,train_perc=0.9,n_neighbors=5, leaf_size=30, metric='euclidean',weights='distance'):
+    def NNClassify(self,train_perc=0.9,n_neighbors=5, algorithm='kd_tree',weights='distance'):
         try:
             self.flux_pca,self.master
         except NameError:
@@ -49,7 +92,7 @@ class SDSS_PCA:
         train_df=self.flux_pca[:int(train_perc*np.shape(self.flux_pca)[0])]
         train_X,train_y=train_df,self.master['class'].values[:int(train_perc*len(self.flux_pca))]
         test_X,test_y=self.flux_pca[int(train_perc*np.shape(self.flux_pca)[0]):],self.master['class'].values[int(train_perc*np.shape(self.flux_pca)[0]):]
-        self.clf=neighbors.KNeighborsClassifier(n_neighbors,weights=weights,algorithm='kd_tree')
+        self.clf=neighbors.KNeighborsClassifier(n_neighbors,weights=weights,algorithm=algorithm)
         self.clf.fit(train_X,train_y)
         self.predicted_y=self.clf.predict(test_X)
         
@@ -70,3 +113,5 @@ class SDSS_PCA:
             for i in range(0,imax):
                 print check_values[i],self.predicted_y[i]
             
+    def PlotPCAComponent(component,doShow=False):
+        plot_spectrum()
