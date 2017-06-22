@@ -3,49 +3,7 @@ import pandas as pd
 from load_spec_files import load_spec_files as LSF
 from sklearn import decomposition,neighbors
 from sklearn.neighbors import KDTree,BallTree
-import matplotlib.pyplot as plt
-
-def plot_spectrum(wav,flux,xmin=None,xmax=None,ymin=None,ymax=None,labels=None,plotfile=None):
-    fluxshared=False
-    if np.shape(wav)!=np.shape(flux):
-        if (len(np.shape(flux))==1):
-            if len(flux)!=np.shape(wav)[1]:
-                print 'wav and flux must have same dimensions'
-                return
-            fluxshared=True
-        else:
-            print 'wav and flux must have same dimensions'
-            return
-    if plotfile!=None:
-        import matplotlib.backends.backend_pdf as bpdf
-        pdf=bpdf.PdfPages(plotfile)
-    fig=plt.figure()
-    plt.clf()
-    plt.rc('axes',linewidth=2)
-    plt.fontsize = 14
-    plt.tick_params(which='major',length=8,width=2,labelsize=14)
-    plt.tick_params(which='minor',length=4,width=1.5,labelsize=14)
-    plt.plot(wav,flux)
-    if plotfile!=None:fig.savefig(pdf,format='pdf')
-    try:
-        wavlen=np.shape(wav)[1]
-        numspec=np.shape(wav)[0]
-        if labels==None:
-            labels=np.full(numspec,None)
-        else:
-            if len(labels)!=numspec:
-                print "labels length doesn't match"
-                labels=np.full(numspec,None)
-        for i in range(1,numspec):
-            if plotfile!=None:plt.clf()
-            if fluxshared:
-                plt.plot(wav[i],flux,label=labels[i])
-            else:
-                plt.plot(wav[i],flux[i],label=labels[i])
-            if plotfile!=None:fig.savefig(pdf,format='pdf')
-        if (plotfile==None) & (np.count_nonzero(labels)>0): plt.legend(frameon=False)
-    if plotfile!=None: pdf.close()
-    return
+from plotting import *
 
 class SDSS_PCA:
     def __init__(self,masterfile='./random_SDSS_specs.csv',fluxdf=None,inputfile=None):
@@ -65,11 +23,12 @@ class SDSS_PCA:
     def load_spec_files(self,spec_dir='./spec_dir',smooth_wid=10,wavstep=None,wavmin=0,wavmax=10000,savefile=None):
         redshifts,plates,mjds,fibers,ids=self.master.z.values,self.master.plate.values,self.master.mjd.values,self.master.fiberid.values,self.master.specobjid.values
         self.fluxdf=LSF(redshifts,plates,mjds,fibers,spec_dir=spec_dir,smooth_wid=smooth_wid,wavstep=wavstep,wavmin=wavmin,wavmax=wavmax,savefile=savefile,ids=ids)
+        self.wavelengths=np.linspace(wavmin,wavmax,np.shape(self.fluxdf)[1])
 
     def DoPCA(self,n_components='mle'):
         try:
             self.fluxdf
-        except NameError:
+        except AttributeError:
             print 'Must set fluxdf'
             return
         X = self.fluxdf.values
@@ -84,7 +43,7 @@ class SDSS_PCA:
     def NNClassify(self,train_perc=0.9,n_neighbors=5, algorithm='kd_tree',weights='distance'):
         try:
             self.flux_pca,self.master
-        except NameError:
+        except AttributeError:
             print 'Must set flux_pca and master'
             return
         #try:
@@ -99,7 +58,7 @@ class SDSS_PCA:
     def ComparePredictions(self,check_values=None,imax=None,verbose=False):
         try:
             self.predicted_y,self.master
-        except NameError:
+        except AttributeError:
             print 'Must set predicted_y and master'
             return
         if check_values==None:check_values=self.master['class'].values[-len(self.predicted_y):]
@@ -113,5 +72,27 @@ class SDSS_PCA:
             for i in range(0,imax):
                 print check_values[i],self.predicted_y[i]
             
-    def PlotPCAComponent(component,doShow=False):
-        plot_spectrum()
+    def PlotPCAComponent(self,component,doShow=False,clear=True):
+        try:
+            self.pca.components_
+        except AttributeError:
+            print 'Must run pca first'
+            return
+        try:
+            plot_spectrum(self.wavelengths,self.pca.components_[component],doShow=doShow,clear=clear)
+        except:
+            plot_spectrum(component,doShow=doShow,clear=clear)
+
+    def PlotPCADecomp(self,lightcurve,max_components=None,savefile=None,colors=['cyan','blue','magenta','red','pink','orange','yellow','green','gray','brown','purple','silver'],fignum=None):
+        try:
+            self.pca.components_,self.wavelengths
+        except AttributeError:
+            print 'Must run pca first;set wavelengths'
+            return
+        if fignum==None: fignum=1
+        plot_spectrum(self.wavelengths,self.fluxdf.iloc[lightcurve],color='k',lw=2,fignum=fignum,clear=False)
+        if max_components==None: max_components=np.shape(self.pca.components_)[0]
+        if max_components>np.shape(self.pca.components_)[0]:max_components=np.shape(self.pca.components_)[0]
+        for icomp in range(0,max_components):
+            plot_spectrum(self.wavelengths,self.pca.components_[icomp]*self.flux_pca[lightcurve],color=colors[icomp%len(colors)],lw=1,fignum=fignum,clear=False)
+        if savefile!=None: plt.savefig(savefile)
