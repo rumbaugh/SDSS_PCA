@@ -3,8 +3,6 @@ import matplotlib.pyplot as plt
 
 def plot_spectrum(wav,flux,xmin=None,xmax=None,ymin=None,ymax=None,labels=None,plotfile=None,doShow=False,fignum=None,clear=True,color='k',lw=1):
     fluxshared=False
-    print wav,flux
-    print np.shape(wav),np.shape(flux)
     if np.shape(wav)!=np.shape(flux):
         if (len(np.shape(wav))==1):
             if len(wav)!=np.shape(flux)[1]:

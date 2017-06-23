@@ -21,6 +21,7 @@ class SDSS_PCA:
     def set_flux(self,infile):
         self.fluxdf=pd.read_csv(infile)
 
+<<<<<<< HEAD
     def prune_master(self,spec_dir='./spec_dir/'):
         #Deletes rows without corresponding spectrum file
         plates,mjds,fibers,ids=self.master.plate.values,self.master.mjd.values,self.master.fiberid.values,self.master.specobjid.values
@@ -28,6 +29,11 @@ class SDSS_PCA:
         files_exist=checkfiles(specfiles)
         self.master=self.master[files_exist]
         
+=======
+    def set_wavelengths(self,wavmin=0,wavmax=10000):
+        self.wavelengths=np.linspace(wavmin,wavmax,np.shape(self.fluxdf)[1])
+
+>>>>>>> 3d0c16874d0647de7f0590aa3e3a7689b46a58ba
     def load_spec_files(self,spec_dir='./spec_dir',smooth_wid=10,wavstep=None,wavmin=0,wavmax=10000,savefile=None):
         redshifts,plates,mjds,fibers,ids=self.master.z.values,self.master.plate.values,self.master.mjd.values,self.master.fiberid.values,self.master.specobjid.values
         self.fluxdf=LSF(redshifts,plates,mjds,fibers,spec_dir=spec_dir,smooth_wid=smooth_wid,wavstep=wavstep,wavmin=wavmin,wavmax=wavmax,savefile=savefile,ids=ids)
@@ -89,7 +95,7 @@ class SDSS_PCA:
         try:
             plot_spectrum(self.wavelengths,self.pca.components_[component],doShow=doShow,clear=clear)
         except:
-            plot_spectrum(component,doShow=doShow,clear=clear)
+            plot_spectrum(self.wavelengths,component,doShow=doShow,clear=clear)
 
     def PlotPCADecomp(self,lightcurve,max_components=None,savefile=None,colors=['cyan','blue','magenta','red','pink','orange','yellow','green','gray','brown','purple','silver'],fignum=None):
         try:
@@ -102,5 +108,5 @@ class SDSS_PCA:
         if max_components==None: max_components=np.shape(self.pca.components_)[0]
         if max_components>np.shape(self.pca.components_)[0]:max_components=np.shape(self.pca.components_)[0]
         for icomp in range(0,max_components):
-            plot_spectrum(self.wavelengths,self.pca.components_[icomp]*self.flux_pca[lightcurve],color=colors[icomp%len(colors)],lw=1,fignum=fignum,clear=False)
+            plot_spectrum(self.wavelengths,self.pca.components_[icomp]*self.flux_pca[lightcurve][icomp],color=colors[icomp%len(colors)],lw=1,fignum=fignum,clear=False)
         if savefile!=None: plt.savefig(savefile)
