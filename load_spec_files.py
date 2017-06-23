@@ -3,6 +3,14 @@ import pyfits as py
 import pandas as pd
 import os
 
+def checkfiles(specfiles):
+    worked=np.zeros(len(specfiles),dtype='bool')
+    for ispec,specfile in zip(np.arange(len(specfiles)),specfiles):
+        worked[ispec]=os.path.isfile(specfile)
+    return worked
+
+def make_spec_names(plates,mjds,fibers,prefix=''):
+    return np.array(['{}spec-{:04d}-{:05d}-{:04d}.fits'.format(prefix,x,y,z) for x,y,z in zip(plates,mjds,fibers)],dtype='|S{}'.format(25+len(prefix)))
 
 def load_spec_files(redshifts,plates=None,mjds=None,fibers=None,spec_dir='./spec',smooth_wid=10,wavstep=None,wavmin=0,wavmax=10000,savefile=None,ids=None):
     inpcheck=np.sum(np.array([plates==None,mjds==None,fibers==None]))
@@ -19,7 +27,7 @@ def load_spec_files(redshifts,plates=None,mjds=None,fibers=None,spec_dir='./spec
         if ((len(plates)!=len(mjds))|(len(plates)!=len(fibers))):
             print 'plates, fibers, and mjds must all have same length'
             return
-        specfiles=np.array(['spec-{:04d}-{:05d}-{:04d}.fits'.format(x,y,z) for x,y,z in zip(plates,mjds,fibers)],dtype='|S25')
+        specfiles=make_spec_names(plates,mjds,fibers)
     if wavstep==None: wavstep=smooth_wid*2
     wavelengths=np.arange(wavmin,wavmax,wavstep)
     fluxes=np.zeros((len(specfiles),len(wavelengths)))
