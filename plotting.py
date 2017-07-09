@@ -24,6 +24,8 @@ def plot_spectrum(wav,flux,xmin=None,xmax=None,ymin=None,ymax=None,labels=None,p
     plt.fontsize = 14
     plt.tick_params(which='major',length=8,width=2,labelsize=14)
     plt.tick_params(which='minor',length=4,width=1.5,labelsize=14)
+    plt.xlabel('Wavelength (A)')
+    plt.ylabel('Flux')
     try:
         wavlen=np.shape(wav)[1]
         numspec=np.shape(wav)[0]

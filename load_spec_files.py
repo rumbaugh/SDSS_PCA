@@ -12,6 +12,12 @@ def checkfiles(specfiles):
 def make_spec_names(plates,mjds,fibers,prefix=''):
     return np.array(['{}spec-{:04d}-{:05d}-{:04d}.fits'.format(prefix,x,y,z) for x,y,z in zip(plates,mjds,fibers)],dtype='|S{}'.format(25+len(prefix)))
 
+def load_single_spec(plate,mjd,fiber,spec_dir='./spec'):
+    specfile='spec-{:04d}-{:05d}-{:04d}.fits'.format(plate,mjd,fiber)
+    spechdu=py.open('{}/{}'.format(spec_dir,specfiles[i]))
+    specdata=spechdu[1].data
+    return specdata
+
 def load_spec_files(redshifts,plates=None,mjds=None,fibers=None,spec_dir='./spec',smooth_wid=10,wavstep=None,wavmin=0,wavmax=10000,savefile=None,ids=None):
     inpcheck=np.sum(np.array([plates==None,mjds==None,fibers==None]))
     if inpcheck>0:

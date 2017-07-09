@@ -17,9 +17,16 @@ class SDSS_PCA:
     def cut_master(self,imax):
         if imax>len(self.master): print 'imax greater than length of master'
         self.master=self.master[:imax]
+        
+    def cut_on_z(self,zmin=0,zmax=8):
+        self.master=self.master[(self.master.z.values>=zmin)&(self.master.z.values<=zmax)]
 
-    def set_flux(self,infile):
-        self.fluxdf=pd.read_csv(infile)
+    def set_flux(self,infile,indexkey='ID',na_values=None):
+        self.fluxdf=pd.read_csv(infile,na_values=na_values)
+        try:
+            self.fluxdf.set_index(indexkey,inplace=True)
+        except KeyError:
+            '{} not found in {}'.format(indexkey,infile)
 
     def prune_master(self,spec_dir='./spec_dir/'):
         #Deletes rows without corresponding spectrum file
@@ -49,17 +56,26 @@ class SDSS_PCA:
         else:
             svd_solver='auto'
         self.pca = decomposition.PCA(n_components=n_components,svd_solver=svd_solver)
-        self.pca.fit(X)
-        self.flux_pca=self.pca.transform(X)
+        self.flux_pca=self.pca.fit_transform(X)
+
+    def check_target(self,target):
+        if np.shape(target)==():
+            if target==None:
+                try:
+                    return self.master['class'].values
+                except:
+                    print 'master not set up correctly: no class column'
+                    return
+        else:
+            return target
     
-    def NNClassify(self,target=self.master['class'].values,train_perc=0.9,n_neighbors=5, algorithm='kd_tree',weights='distance'):
+    def NNClassify(self,target=None,train_perc=0.9,n_neighbors=5, algorithm='kd_tree',weights='distance'):
         try:
             self.flux_pca,self.master
         except AttributeError:
             print 'Must set flux_pca and master'
             return
-        #try:
-        #    self.sourcetype
+        target=self.check_target(target)
         train_df=self.flux_pca[:int(train_perc*np.shape(self.flux_pca)[0])]
         train_X,train_y=train_df,target[:int(train_perc*len(self.flux_pca))]
         test_X,test_y=self.flux_pca[int(train_perc*np.shape(self.flux_pca)[0]):],target[int(train_perc*np.shape(self.flux_pca)[0]):]
@@ -67,16 +83,18 @@ class SDSS_PCA:
         self.clf.fit(train_X,train_y)
         self.predicted_y=self.clf.predict(test_X)
         
-    def ComparePredictions(self,target=self.master['class'].values,check_values=None,imax=None,verbose=False):
+    def ComparePredictions(self,target=None,check_values=None,imax=None,verbose=False,returnperc=False):
         try:
             self.predicted_y,self.master
         except AttributeError:
             print 'Must set predicted_y and master'
             return
+        target=self.check_target(target)
         if check_values==None:check_values=target[-len(self.predicted_y):]
         if not(verbose):
             perc_correct=np.sum(check_values==self.predicted_y)*1./len(self.predicted_y)*100
             print 'Predicted Correctly: {:.2f}'.format(perc_correct)
+            if returnperc: return perc_correct
         else:
             masterlen=len(target)
             if imax==None: imax=len(self.predicted_y)
@@ -84,16 +102,16 @@ class SDSS_PCA:
             for i in range(0,imax):
                 print check_values[i],self.predicted_y[i]
             
-    def PlotPCAComponent(self,component,doShow=False,clear=True):
+    def PlotPCAComponent(self,component,doShow=False,clear=True,fignum=None):
         try:
             self.pca.components_
         except AttributeError:
             print 'Must run pca first'
             return
         try:
-            plot_spectrum(self.wavelengths,self.pca.components_[component],doShow=doShow,clear=clear)
+            plot_spectrum(self.wavelengths,self.pca.components_[component],doShow=doShow,clear=clear,fignum=fignum)
         except:
-            plot_spectrum(self.wavelengths,component,doShow=doShow,clear=clear)
+            plot_spectrum(self.wavelengths,component,doShow=doShow,clear=clear,fignum=fignum)
 
     def PlotPCADecomp(self,lightcurve,max_components=None,savefile=None,colors=['cyan','blue','magenta','red','pink','orange','yellow','green','gray','brown','purple','silver'],fignum=None):
         try:
@@ -108,3 +126,49 @@ class SDSS_PCA:
         for icomp in range(0,max_components):
             plot_spectrum(self.wavelengths,self.pca.components_[icomp]*self.flux_pca[lightcurve][icomp],color=colors[icomp%len(colors)],lw=1,fignum=fignum,clear=False)
         if savefile!=None: plt.savefig(savefile)
+        
+    def PlotPCAModel(self,lightcurve,max_components=None,savefile=None,colors=['cyan','blue','magenta','red','pink','orange','yellow','green','gray','brown','purple','silver'],fignum=None,plottype=True,ignore_components=[]):
+        try:
+            self.pca.components_,self.wavelengths
+        except AttributeError:
+            print 'Must run pca first;set wavelengths'
+            return
+        if fignum==None: fignum=1
+        plot_spectrum(self.wavelengths,self.fluxdf.iloc[lightcurve],color='k',lw=2,fignum=fignum,clear=True)
+        if max_components==None: max_components=np.shape(self.pca.components_)[0]
+        if max_components>np.shape(self.pca.components_)[0]:max_components=np.shape(self.pca.components_)[0]
+        model=np.zeros(len(self.wavelengths))
+        for icomp in np.delete(np.arange(0,max_components),ignore_components):
+            model+=self.pca.components_[icomp]*self.flux_pca[lightcurve][icomp]
+        plot_spectrum(self.wavelengths,model,color='red',lw=1,fignum=fignum,clear=False)
+        if plottype:
+            ax=plt.gca()
+            plt.text(0.05,0.95,'Pred: {}\nTrue: {}'.format(self.predicted_y[lightcurve],self.master['class'].values[lightcurve-len(self.predicted_y)]),transform=ax.transAxes,horizontalalignment='left',verticalalignment='top')
+        if savefile!=None: plt.savefig(savefile)
+
+    def Plot2DComp(self,comp1,comp2,target=None,train_perc=0.9,colors=['pink','green','cyan'],alpha=0.25,savefile=None):
+        try:
+            self.predicted_y,self.master
+        except AttributeError:
+            print 'Must set predicted_y and master'
+            return
+        plt.clf()
+        target=self.check_target(target)
+        train_df=self.flux_pca[:int(train_perc*np.shape(self.flux_pca)[0])]
+        train_X,train_y=train_df,target[:int(train_perc*len(self.flux_pca))]
+        test_X,test_y=self.flux_pca[int(train_perc*np.shape(self.flux_pca)[0]):],target[int(train_perc*np.shape(self.flux_pca)[0]):]
+        classfs=np.unique(np.append(train_y,test_y))
+        c_dict={classfs[x]: colors[x] for x in np.arange(len(classfs))}
+        for classf in classfs:
+            plt.scatter(train_X[train_y==classf][:,comp1],train_X[train_y==classf][:,comp2],color=c_dict[classf],s=6,alpha=alpha)
+        for classf in classfs:
+            plt.scatter(test_X[self.predicted_y==classf][:,comp1],test_X[self.predicted_y==classf][:,comp2],s=26,marker='d',color=c_dict[classf],label=classf)
+        for classf in classfs:
+            plt.scatter(test_X[(test_y==classf)&(self.predicted_y!=classf)][:,comp1],test_X[(test_y==classf)&(self.predicted_y!=classf)][:,comp2],s=26,marker='x',color=c_dict[classf],edgecolor='None',lw=2)
+        plt.legend(frameon=False)
+        if savefile!=None: plt.savefig(savefile)
+
+    def find_wrong(self):
+        bool_wrong=self.predicted_y!=self.master['class'][-len(self.predicted_y):]
+        self.wrong=np.arange(len(self.bool_wrong))[bool_wrong.values]
+
