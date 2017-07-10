@@ -8,6 +8,7 @@ from plotting import *
 
 class SDSS_PCA:
     def __init__(self,masterfile='./random_SDSS_specs.csv',fluxdf=None,inputfile=None):
+        #Read in master file with info on each object
         self.master=pd.read_csv(masterfile)
         if fluxdf!=None:
             self.fluxdf=fluxdf
@@ -15,13 +16,17 @@ class SDSS_PCA:
             self.fluxdf=pd.read_csv(inputfile)
 
     def cut_master(self,imax):
+        #Cut master down to size
         if imax>len(self.master): print 'imax greater than length of master'
         self.master=self.master[:imax]
         
     def cut_on_z(self,zmin=0,zmax=8):
+        #Make a cut in redshift space
         self.master=self.master[(self.master.z.values>=zmin)&(self.master.z.values<=zmax)]
 
     def set_flux(self,infile,indexkey='ID',na_values=None):
+        #Load in flux array from a csv file, rather than
+        #loading in spectra fits files and applying smoothing
         self.fluxdf=pd.read_csv(infile,na_values=na_values)
         try:
             self.fluxdf.set_index(indexkey,inplace=True)
@@ -40,11 +45,16 @@ class SDSS_PCA:
         self.wavelengths=np.linspace(wavmin,wavmax,np.shape(self.fluxdf)[1])
 
     def load_spec_files(self,spec_dir='./spec_dir',smooth_wid=10,wavstep=None,wavmin=0,wavmax=10000,savefile=None):
+        #Load in files for each spectra. Corrects all spectra to rest-frame
+        #and smooths down to a grid defined by wavstep, wavmin, and wavmax
+        #Set savefile to write output to a file so it can be loaded later
         redshifts,plates,mjds,fibers,ids=self.master.z.values,self.master.plate.values,self.master.mjd.values,self.master.fiberid.values,self.master.specobjid.values
         self.fluxdf=LSF(redshifts,plates,mjds,fibers,spec_dir=spec_dir,smooth_wid=smooth_wid,wavstep=wavstep,wavmin=wavmin,wavmax=wavmax,savefile=savefile,ids=ids)
         self.wavelengths=np.linspace(wavmin,wavmax,np.shape(self.fluxdf)[1])
 
     def DoPCA(self,n_components='mle'):
+        #Perform PCA decomposition of flux array, then transform
+        #flux array into the space of PCA components
         try:
             self.fluxdf
         except AttributeError:
@@ -59,6 +69,7 @@ class SDSS_PCA:
         self.flux_pca=self.pca.fit_transform(X)
 
     def check_target(self,target):
+        #Set target to master.class values if unset
         if np.shape(target)==():
             if target==None:
                 try:
@@ -70,6 +81,9 @@ class SDSS_PCA:
             return target
     
     def NNClassify(self,target=None,train_perc=0.9,n_neighbors=5, algorithm='kd_tree',weights='distance'):
+        #Perform nearest neighbor classification in PCA component space
+        #Uses a fraction of the flux array as the training set, defined
+        #by train_perc. The rest is used as the test set
         try:
             self.flux_pca,self.master
         except AttributeError:
@@ -84,6 +98,9 @@ class SDSS_PCA:
         self.predicted_y=self.clf.predict(test_X)
         
     def ComparePredictions(self,target=None,check_values=None,imax=None,verbose=False,returnperc=False):
+        #Compares predictions to true values. Set verbose to True to
+        #print out every comparison. Otherwise, just prints out the
+        #percentage predicted correctly
         try:
             self.predicted_y,self.master
         except AttributeError:
@@ -103,6 +120,7 @@ class SDSS_PCA:
                 print check_values[i],self.predicted_y[i]
             
     def PlotPCAComponent(self,component,doShow=False,clear=True,fignum=None):
+        #Plots the specificed PCA component
         try:
             self.pca.components_
         except AttributeError:
@@ -114,6 +132,7 @@ class SDSS_PCA:
             plot_spectrum(self.wavelengths,component,doShow=doShow,clear=clear,fignum=fignum)
 
     def PlotPCADecomp(self,lightcurve,max_components=None,savefile=None,colors=['cyan','blue','magenta','red','pink','orange','yellow','green','gray','brown','purple','silver'],fignum=None):
+        #Plots the PCA decomposition of one lightcurve
         try:
             self.pca.components_,self.wavelengths
         except AttributeError:
@@ -128,6 +147,8 @@ class SDSS_PCA:
         if savefile!=None: plt.savefig(savefile)
         
     def PlotPCAModel(self,lightcurve,max_components=None,savefile=None,colors=['cyan','blue','magenta','red','pink','orange','yellow','green','gray','brown','purple','silver'],fignum=None,plottype=True,ignore_components=[]):
+        #Plots the combined model for a lightcurve from all
+        #PCA components and compares to data
         try:
             self.pca.components_,self.wavelengths
         except AttributeError:
@@ -147,6 +168,8 @@ class SDSS_PCA:
         if savefile!=None: plt.savefig(savefile)
 
     def Plot2DComp(self,comp1,comp2,target=None,train_perc=0.9,colors=['pink','green','cyan'],alpha=0.25,savefile=None):
+        #Plots the training and test set in a 2D space defined
+        #by two of the PCA components.
         try:
             self.predicted_y,self.master
         except AttributeError:
@@ -159,6 +182,7 @@ class SDSS_PCA:
         test_X,test_y=self.flux_pca[int(train_perc*np.shape(self.flux_pca)[0]):],target[int(train_perc*np.shape(self.flux_pca)[0]):]
         classfs=np.unique(np.append(train_y,test_y))
         c_dict={classfs[x]: colors[x] for x in np.arange(len(classfs))}
+
         for classf in classfs:
             plt.scatter(train_X[train_y==classf][:,comp1],train_X[train_y==classf][:,comp2],color=c_dict[classf],s=6,alpha=alpha)
         for classf in classfs:
