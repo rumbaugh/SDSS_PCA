@@ -4,6 +4,7 @@ from load_spec_files import load_spec_files as LSF
 from load_spec_files import checkfiles,make_spec_names
 from sklearn import decomposition,neighbors
 from sklearn.neighbors import KDTree,BallTree
+from sklearn.model_selection import cross_val_score
 from plotting import *
 
 class SDSS_PCA:
@@ -14,6 +15,7 @@ class SDSS_PCA:
             self.fluxdf=fluxdf
         elif inputfile!=None:
             self.fluxdf=pd.read_csv(inputfile)
+        self.NCV=5
 
     def cut_master(self,imax):
         #Cut master down to size
@@ -96,6 +98,10 @@ class SDSS_PCA:
         self.clf=neighbors.KNeighborsClassifier(n_neighbors,weights=weights,algorithm=algorithm)
         self.clf.fit(train_X,train_y)
         self.predicted_y=self.clf.predict(test_X)
+        self.CV_scores=cross_val_score(self.clf,self.flux_pca,target,cv=self.NCV)
+
+    def ShowCrossVal(self,Nsigma=1):
+        print "Accuracy: %.3f +/- %.3f"%(self.CV_scores.mean(),self.CV_scores.std()*Nsigma)
         
     def ComparePredictions(self,target=None,check_values=None,imax=None,verbose=False,returnperc=False):
         #Compares predictions to true values. Set verbose to True to
