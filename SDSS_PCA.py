@@ -4,6 +4,7 @@ from load_spec_files import load_spec_files as LSF
 from load_spec_files import checkfiles,make_spec_names
 from sklearn import decomposition,neighbors
 from sklearn.neighbors import KDTree,BallTree
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
 from plotting import *
 
@@ -96,6 +97,24 @@ class SDSS_PCA:
         train_X,train_y=train_df,target[:int(train_perc*len(self.flux_pca))]
         test_X,test_y=self.flux_pca[int(train_perc*np.shape(self.flux_pca)[0]):],target[int(train_perc*np.shape(self.flux_pca)[0]):]
         self.clf=neighbors.KNeighborsClassifier(n_neighbors,weights=weights,algorithm=algorithm)
+        self.clf.fit(train_X,train_y)
+        self.predicted_y=self.clf.predict(test_X)
+        self.CV_scores=cross_val_score(self.clf,self.flux_pca,target,cv=self.NCV)
+    
+    def RFClassify(self,target=None,train_perc=0.9,NE=10):
+        #Perform random forest classification in PCA component space
+        #Uses a fraction of the flux array as the training set, defined
+        #by train_perc. The rest is used as the test set
+        try:
+            self.flux_pca,self.master
+        except AttributeError:
+            print 'Must set flux_pca and master'
+            return
+        target=self.check_target(target)
+        train_df=self.flux_pca[:int(train_perc*np.shape(self.flux_pca)[0])]
+        train_X,train_y=train_df,target[:int(train_perc*len(self.flux_pca))]
+        test_X,test_y=self.flux_pca[int(train_perc*np.shape(self.flux_pca)[0]):],target[int(train_perc*np.shape(self.flux_pca)[0]):]
+        self.clf=RandomForestClassifier(n_estimators=NE)
         self.clf.fit(train_X,train_y)
         self.predicted_y=self.clf.predict(test_X)
         self.CV_scores=cross_val_score(self.clf,self.flux_pca,target,cv=self.NCV)
